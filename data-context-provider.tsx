@@ -59,6 +59,7 @@ const DataContext = createContext<DataContextValue | undefined>(undefined);
 
 // Excel processor
 import NovoNordiskExcelProcessor from './ExcelProcessor';
+import DataTransformer from './DataTransformer';
 
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // The shared state that will be available to our components
@@ -108,11 +109,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         const jsonData = await response.json();
         console.log("Successfully loaded complete data");
         
+        // Use DataTransformer to transform raw records if records array is present
+        let processedData = jsonData;
+        
+        if (jsonData.records && Array.isArray(jsonData.records)) {
+          console.log(`Transforming ${jsonData.records.length} records using DataTransformer`);
+          const transformer = new DataTransformer();
+          transformer.setRawData(jsonData.records);
+          processedData = transformer.transformData();
+        }
+        
         // Update the state with the loaded data
         setDataState(prev => ({
           ...prev,
           isLoading: false,
-          data: jsonData,
+          data: processedData,
           lastUpdated: new Date(),
           fileStatus: {
             ...prev.fileStatus,
@@ -121,6 +132,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         }));
         
         return; // Exit early since we loaded the complete data
+        
       } catch (err: any) {
         console.error("Error loading complete data:", err);
         console.log("Falling back to loading individual files...");
@@ -145,6 +157,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       ];
 
       const fileData: Record<string, any> = {};
+      let combinedRecords: any[] = [];
 
       // Process each file in sequence
       for (const file of files) {
@@ -166,6 +179,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           
           const jsonData = await response.json();
           fileData[file.type] = jsonData;
+          
+          // If the file contains records, add them to our combined records array
+          if (jsonData.records && Array.isArray(jsonData.records)) {
+            // Add a source field to each record to track its origin
+            const sourceRecords = jsonData.records.map((record: any) => ({
+              ...record,
+              source: file.type
+            }));
+            
+            combinedRecords = [...combinedRecords, ...sourceRecords];
+          }
+          
           console.log(`Successfully loaded ${file.name}`);
 
           // Update status to success
@@ -190,32 +215,36 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         }
       }
 
+      // If we have collected records from individual files, process them with DataTransformer
+      if (combinedRecords.length > 0) {
+        console.log(`Transforming ${combinedRecords.length} combined records using DataTransformer`);
+        const transformer = new DataTransformer();
+        transformer.setRawData(combinedRecords);
+        const transformedData = transformer.transformData();
+        
+        // Update the state with transformed data
+        setDataState(prev => ({
+          ...prev,
+          isLoading: false,
+          data: transformedData,
+          lastUpdated: new Date(),
+        }));
+        
+        return;
+      }
+      
       // If we couldn't load the complete data but have some of the individual files,
-      // try to construct a dataset from what we have
+      // try to use the Excel processor as a fallback
       if (Object.keys(fileData).length > 0) {
-        console.log("Constructing data from individual files");
-        // Transform data from individual files
-        // Here you would implement your own data transformation logic
+        console.log("Using Excel processor to process data");
         
-        // For now, use the mock data structure but with any real data we loaded
-        const processedData = getMockData();
+        // For each data type we've loaded, pass it to the Excel processor
+        Object.entries(fileData).forEach(([type, data]) => {
+          processor.setProcessedData(data);
+        });
         
-        // Merge in any real data we loaded
-        if (fileData.internal) {
-          // processedData.internalRFT = transformInternalData(fileData.internal);
-          console.log("Loaded internal data");
-        }
+        const processedData = processor.getProcessedData();
         
-        if (fileData.external) {
-          // processedData.externalRFT = transformExternalData(fileData.external);
-          console.log("Loaded external data");
-        }
-        
-        if (fileData.process) {
-          // processedData.processMetrics = transformProcessData(fileData.process);
-          console.log("Loaded process data");
-        }
-
         // Update the state with processed data
         setDataState(prev => ({
           ...prev,

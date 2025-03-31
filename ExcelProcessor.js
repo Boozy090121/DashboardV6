@@ -1,9 +1,11 @@
 import * as XLSX from 'xlsx';
+import DataTransformer from './DataTransformer';
 
 class NovoNordiskExcelProcessor {
   constructor() {
     // Initialize with empty data structure
     this.processedData = null;
+    this.dataTransformer = new DataTransformer();
     this.loadMockData(); // Load mock data by default
   }
 
@@ -46,7 +48,15 @@ class NovoNordiskExcelProcessor {
   
   // Sets processed data from an external source (like our preprocessed JSON)
   setProcessedData(data) {
-    this.processedData = data;
+    // If data contains a records array, transform it using the DataTransformer
+    if (data && Array.isArray(data.records)) {
+      console.log(`Transforming ${data.records.length} records using DataTransformer`);
+      this.dataTransformer.setRawData(data.records);
+      this.processedData = this.dataTransformer.transformData();
+    } else {
+      // If data is already in the expected format, just use it directly
+      this.processedData = data;
+    }
   }
   
   // Load mock data as a fallback
