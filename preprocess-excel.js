@@ -13,9 +13,16 @@ const excelFiles = [
 
 // Create output directory
 const outputDir = './public/data';
+console.log(`Trying to create directory: ${outputDir}`);
 if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-  console.log(`Created output directory: ${outputDir}`);
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    console.log(`Created output directory: ${outputDir}`);
+  } catch (error) {
+    console.error(`Error creating directory: ${error.message}`);
+  }
+} else {
+  console.log(`Directory already exists: ${outputDir}`);
 }
 
 // Process each Excel file
@@ -131,6 +138,7 @@ let overallData = {
 excelFiles.forEach(file => {
   try {
     // First check if the file exists
+    console.log(`Checking if file exists: ${file.path}`);
     if (fs.existsSync(file.path)) {
       console.log(`Processing ${file.path}...`);
       
@@ -161,16 +169,26 @@ excelFiles.forEach(file => {
 });
 
 // Save the complete dataset
-const completeDataPath = path.join(outputDir, 'complete-data.json');
-fs.writeFileSync(completeDataPath, JSON.stringify(overallData, null, 2));
-console.log(`Saved complete data to ${completeDataPath}`);
+try {
+  const completeDataPath = path.join(outputDir, 'complete-data.json');
+  console.log(`Trying to write to: ${completeDataPath}`);
+  fs.writeFileSync(completeDataPath, JSON.stringify(overallData, null, 2));
+  console.log(`Saved complete data to ${completeDataPath}`);
+} catch (error) {
+  console.error(`Error writing complete data: ${error.message}`);
+}
 
 // Create a metadata file
-const metadataPath = path.join(outputDir, 'metadata.json');
-fs.writeFileSync(metadataPath, JSON.stringify({
-  lastUpdated: new Date().toISOString(),
-  files: excelFiles.map(f => ({ type: f.type, filename: path.basename(f.path) }))
-}, null, 2));
-console.log(`Saved metadata to ${metadataPath}`);
+try {
+  const metadataPath = path.join(outputDir, 'metadata.json');
+  console.log(`Trying to write to: ${metadataPath}`);
+  fs.writeFileSync(metadataPath, JSON.stringify({
+    lastUpdated: new Date().toISOString(),
+    files: excelFiles.map(f => ({ type: f.type, filename: path.basename(f.path) }))
+  }, null, 2));
+  console.log(`Saved metadata to ${metadataPath}`);
+} catch (error) {
+  console.error(`Error writing metadata: ${error.message}`);
+}
 
 console.log('Excel preprocessing complete!'); 

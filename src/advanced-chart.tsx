@@ -458,6 +458,9 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   
   // Render pie chart
   const renderPieChart = () => {
+    // If yDataKey is an array, use only the first element for pie charts
+    const pieDataKey = Array.isArray(yDataKey) ? yDataKey[0] : yDataKey;
+    
     return (
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>
@@ -469,7 +472,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
             cy="50%"
             outerRadius={140}
             fill="#8884d8"
-            dataKey={yDataKey}
+            dataKey={pieDataKey}
             nameKey={xDataKey}
             onMouseEnter={(data, index) => setActiveIndex(index)}
             onClick={(data, index) => handleClick(data, index)}
@@ -491,6 +494,9 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   
   // Render donut chart
   const renderDonutChart = () => {
+    // If yDataKey is an array, use only the first element for donut charts
+    const donutDataKey = Array.isArray(yDataKey) ? yDataKey[0] : yDataKey;
+    
     return (
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>
@@ -503,7 +509,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
             innerRadius={70}
             outerRadius={140}
             fill="#8884d8"
-            dataKey={yDataKey}
+            dataKey={donutDataKey}
             nameKey={xDataKey}
             onMouseEnter={(data, index) => setActiveIndex(index)}
             onClick={(data, index) => handleClick(data, index)}

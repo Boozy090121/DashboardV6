@@ -1,6 +1,6 @@
 import React from 'react';
-import NovoNordiskDashboard from './NovoNordiskDashboard';
-import { DataProvider } from './DataContextProvider';
+import NovoNordiskDashboard from './novo-nordisk-dashboard';
+import { DataProvider } from './data-context-provider';
 
 const App = () => {
   return (

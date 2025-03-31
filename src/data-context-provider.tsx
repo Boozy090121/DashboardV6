@@ -10,6 +10,18 @@ declare global {
   }
 }
 
+// Implement a mock fs if it doesn't exist
+if (typeof window !== 'undefined' && !window.fs) {
+  window.fs = {
+    readFile: async (filename: string) => {
+      console.log(`Mock file read for: ${filename}`);
+      // In a real implementation, this would return file data
+      // For now, just return an empty buffer that the processor can handle
+      return new ArrayBuffer(0);
+    }
+  };
+}
+
 // Type definitions
 interface FileStatus {
   loaded: boolean;
@@ -47,6 +59,7 @@ const DataContext = createContext<DataContextValue | undefined>(undefined);
 
 // Excel processor
 import NovoNordiskExcelProcessor from './ExcelProcessor';
+import DataTransformer from './DataTransformer';
 
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // The shared state that will be available to our components
@@ -56,33 +69,95 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     data: null,
     lastUpdated: null,
     fileStatus: {
-      "Internal RFT.xlsx": { loaded: false, status: 'pending' },
-      "External RFT.xlsx": { loaded: false, status: 'pending' },
-      "Commercial Process.xlsx": { loaded: false, status: 'pending' }
+      "complete-data.json": { loaded: false, status: 'pending' },
+      "internal.json": { loaded: false, status: 'pending' },
+      "external.json": { loaded: false, status: 'pending' },
+      "process.json": { loaded: false, status: 'pending' }
     }
   });
 
   // Initialize the processor
   const [processor] = useState<any>(new NovoNordiskExcelProcessor());
 
-  // Function to load and process files
-  const loadAndProcessFiles = async (): Promise<void> => {
+  // Function to load the preprocessed JSON data files
+  const loadData = async (): Promise<void> => {
     try {
+      console.log("Starting to load JSON data...");
+      
       setDataState(prev => ({
         ...prev,
         isLoading: true,
         error: null
       }));
 
-      // Track file status
-      const fileStatus = { ...dataState.fileStatus };
+      // Try to load the complete data file first - this is the fastest approach
+      try {
+        // Update status to loading
+        setDataState(prev => ({
+          ...prev,
+          fileStatus: {
+            ...prev.fileStatus,
+            "complete-data.json": { loaded: false, status: 'loading' }
+          }
+        }));
 
-      // Start loading each file
+        const response = await fetch('/data/complete-data.json');
+        if (!response.ok) {
+          throw new Error(`Failed to load complete data file: ${response.statusText}`);
+        }
+        
+        const jsonData = await response.json();
+        console.log("Successfully loaded complete data");
+        
+        // Use DataTransformer to transform raw records if records array is present
+        let processedData = jsonData;
+        
+        if (jsonData.records && Array.isArray(jsonData.records)) {
+          console.log(`Transforming ${jsonData.records.length} records using DataTransformer`);
+          const transformer = new DataTransformer();
+          transformer.setRawData(jsonData.records);
+          processedData = transformer.transformData();
+        }
+        
+        // Update the state with the loaded data
+        setDataState(prev => ({
+          ...prev,
+          isLoading: false,
+          data: processedData,
+          lastUpdated: new Date(),
+          fileStatus: {
+            ...prev.fileStatus,
+            "complete-data.json": { loaded: true, status: 'success' }
+          }
+        }));
+        
+        return; // Exit early since we loaded the complete data
+        
+      } catch (err: any) {
+        console.error("Error loading complete data:", err);
+        console.log("Falling back to loading individual files...");
+        
+        // Update status to error for complete data
+        setDataState(prev => ({
+          ...prev,
+          fileStatus: {
+            ...prev.fileStatus,
+            "complete-data.json": { loaded: false, status: 'error', error: err.message }
+          }
+        }));
+        
+        // Fall back to loading individual files
+      }
+
+      // Load individual files
       const files = [
-        { name: "Internal RFT.xlsx", type: "internal" },
-        { name: "External RFT.xlsx", type: "external" },
-        { name: "Commercial Process.xlsx", type: "process" }
+        { name: "internal.json", type: "internal" },
+        { name: "external.json", type: "external" },
+        { name: "process.json", type: "process" }
       ];
+
+      const fileData: Record<string, any> = {};
+      let combinedRecords: any[] = [];
 
       // Process each file in sequence
       for (const file of files) {
@@ -96,11 +171,27 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             }
           }));
 
-          // Attempt to read the file
-          const fileData = await window.fs.readFile(file.name);
+          // Fetch the JSON file
+          const response = await fetch(`/data/${file.name}`);
+          if (!response.ok) {
+            throw new Error(`Failed to load ${file.name}: ${response.statusText}`);
+          }
           
-          // Process the file
-          processor.processExcelFile(fileData, file.type);
+          const jsonData = await response.json();
+          fileData[file.type] = jsonData;
+          
+          // If the file contains records, add them to our combined records array
+          if (jsonData.records && Array.isArray(jsonData.records)) {
+            // Add a source field to each record to track its origin
+            const sourceRecords = jsonData.records.map((record: any) => ({
+              ...record,
+              source: file.type
+            }));
+            
+            combinedRecords = [...combinedRecords, ...sourceRecords];
+          }
+          
+          console.log(`Successfully loaded ${file.name}`);
 
           // Update status to success
           setDataState(prev => ({
@@ -111,7 +202,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             }
           }));
         } catch (err: any) {
-          console.error(`Error processing ${file.name}:`, err);
+          console.error(`Error loading ${file.name}:`, err);
           
           // Update status to error
           setDataState(prev => ({
@@ -124,14 +215,53 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         }
       }
 
-      // Get the processed data
-      const processedData = processor.getProcessedData();
-
-      // Update the state with processed data
+      // If we have collected records from individual files, process them with DataTransformer
+      if (combinedRecords.length > 0) {
+        console.log(`Transforming ${combinedRecords.length} combined records using DataTransformer`);
+        const transformer = new DataTransformer();
+        transformer.setRawData(combinedRecords);
+        const transformedData = transformer.transformData();
+        
+        // Update the state with transformed data
+        setDataState(prev => ({
+          ...prev,
+          isLoading: false,
+          data: transformedData,
+          lastUpdated: new Date(),
+        }));
+        
+        return;
+      }
+      
+      // If we couldn't load the complete data but have some of the individual files,
+      // try to use the Excel processor as a fallback
+      if (Object.keys(fileData).length > 0) {
+        console.log("Using Excel processor to process data");
+        
+        // For each data type we've loaded, pass it to the Excel processor
+        Object.entries(fileData).forEach(([type, data]) => {
+          processor.setProcessedData(data);
+        });
+        
+        const processedData = processor.getProcessedData();
+        
+        // Update the state with processed data
+        setDataState(prev => ({
+          ...prev,
+          isLoading: false,
+          data: processedData,
+          lastUpdated: new Date(),
+        }));
+        
+        return;
+      }
+      
+      // If we get here, we couldn't load any data, so use mock data
+      console.log("Falling back to mock data");
       setDataState(prev => ({
         ...prev,
         isLoading: false,
-        data: processedData,
+        data: getMockData(),
         lastUpdated: new Date(),
       }));
     } catch (error: any) {
@@ -139,20 +269,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       setDataState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.message || "An error occurred while loading the data"
+        error: error.message || "An error occurred while loading the data",
+        data: getMockData() // Still provide mock data on error
       }));
     }
   };
 
-  // Load data on mount
-  useEffect(() => {
-    loadAndProcessFiles();
-  }, []);
-
   // Generate mock data if needed
-  const generateMockData = (): any => {
-    // Generate mock data if we couldn't load real data
-    const mockData = {
+  const getMockData = (): any => {
+    // Return the same mock data structure as in the preprocess-excel.js script
+    return {
       overview: {
         totalRecords: 1245,
         totalLots: 78,
@@ -253,7 +379,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         ]
       },
       lotData: {
-        // Sample lot data
         B1001: { rftRate: 94.2, cycleTime: 16.5, hasErrors: false, releaseDate: '2025-02-15', department: 'Production' },
         B1002: { rftRate: 88.7, cycleTime: 18.2, hasErrors: true, releaseDate: '2025-02-20', department: 'Quality' },
         B1003: { rftRate: 96.3, cycleTime: 15.8, hasErrors: false, releaseDate: '2025-02-25', department: 'Production' },
@@ -261,33 +386,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         B1005: { rftRate: 93.8, cycleTime: 16.2, hasErrors: false, releaseDate: '2025-03-08', department: 'Production' }
       }
     };
-
-    return mockData;
   };
 
-  // Function to get data (real or mock if needed)
-  const getData = (): any | null => {
-    if (dataState.data) {
-      return dataState.data;
-    }
-    
-    // Check if we're still loading
-    if (dataState.isLoading) {
-      return null;
-    }
-    
-    // If there was an error or no data, return mock data
-    return generateMockData();
-  };
+  // Load data on mount
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Value to be provided to consumers
   const contextValue: DataContextValue = {
     isLoading: dataState.isLoading,
     error: dataState.error,
-    data: getData(),
+    data: dataState.data,
     fileStatus: dataState.fileStatus,
     lastUpdated: dataState.lastUpdated,
-    refreshData: loadAndProcessFiles
+    refreshData: loadData
   };
 
   return (
