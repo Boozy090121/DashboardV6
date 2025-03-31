@@ -16,6 +16,8 @@
     "lodash": "^4.17.21"
   },
   "scripts": {
+    "preprocess": "node preprocess-excel.js",
+    "prebuild": "npm run preprocess",
     "start": "react-scripts start",
     "build": "CI=false TSC_COMPILE_ON_ERROR=true DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false react-scripts build",
     "test": "react-scripts test",

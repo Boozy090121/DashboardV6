@@ -2,6 +2,55 @@ import * as XLSX from 'xlsx';
 
 class NovoNordiskExcelProcessor {
   constructor() {
+    // Initialize with empty data structure
+    this.processedData = null;
+    this.loadMockData(); // Load mock data by default
+  }
+
+  // Legacy method for processing Excel files - now primarily used for testing/development
+  processExcelFile(fileData, fileType) {
+    console.log(`Processing ${fileType} file`);
+    
+    try {
+      if (fileData && fileData.byteLength > 0) {
+        // If we have actual file data, process it
+        const workbook = XLSX.read(fileData, { type: 'array' });
+        
+        if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
+          console.log(`Loaded Excel workbook with ${workbook.SheetNames.length} sheets`);
+          
+          // In a real implementation, this is where you would extract and transform the data
+          // For now, we'll just load mock data
+        }
+      }
+    } catch (error) {
+      console.error('Error processing Excel file:', error);
+    }
+    
+    // Always ensure we have data to return
+    if (!this.processedData) {
+      this.loadMockData();
+    }
+    
+    return true;
+  }
+
+  // Main method for accessing data
+  getProcessedData() {
+    // If we don't have processed data, load mock data
+    if (!this.processedData) {
+      this.loadMockData();
+    }
+    return this.processedData;
+  }
+  
+  // Sets processed data from an external source (like our preprocessed JSON)
+  setProcessedData(data) {
+    this.processedData = data;
+  }
+  
+  // Load mock data as a fallback
+  loadMockData() {
     this.processedData = {
       overview: {
         totalRecords: 1245,
@@ -110,17 +159,6 @@ class NovoNordiskExcelProcessor {
         B1005: { rftRate: 93.8, cycleTime: 16.2, hasErrors: false, releaseDate: '2025-03-08', department: 'Production' }
       }
     };
-  }
-
-  processExcelFile(fileData, fileType) {
-    // Mock implementation - in a real app, this would parse Excel data
-    console.log(`Processing ${fileType} file`);
-    // The mock data is already set in the constructor
-    return true;
-  }
-
-  getProcessedData() {
-    return this.processedData;
   }
 }
 
