@@ -4,10 +4,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   Cell, Sector, ReferenceLine
 } from 'recharts';
-import { ChevronRight, X, ZoomIn, Download, Share, Info, RefreshCw } from 'lucide-react';
+import { ChevronRight, X, ZoomIn, Download, Share, Info, PieChartIcon, RefreshCw } from 'lucide-react';
 
-// Define TypeScript interface for the component props
-interface AdvancedChartProps {
+// Define TypeScript interface for props
+interface DrillDownChartProps {
   title: string;
   description?: string;
   data: any[];
@@ -29,7 +29,7 @@ interface AdvancedChartProps {
   isLoading?: boolean;
 }
 
-const AdvancedChart: React.FC<AdvancedChartProps> = ({
+const DrillDownChart: React.FC<DrillDownChartProps> = ({
   title,
   description,
   data,
@@ -133,7 +133,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   };
   
   // Export chart data as CSV
-  const exportData = () => {
+  const exportData = (): void => {
     if (!data || data.length === 0) return;
     
     // Create CSV content
@@ -154,7 +154,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   };
   
   // Calculate total for data if needed
-  const calculateTotal = () => {
+  const calculateTotal = (): number => {
     if (!data || data.length === 0 || !yDataKey) return 0;
     
     if (typeof yDataKey === 'string') {
@@ -176,7 +176,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   };
   
   // Custom active shape for pie charts
-  const renderActiveShape = (props: any) => {
+  const renderActiveShape = (props: any): JSX.Element => {
     const { 
       cx, cy, innerRadius, outerRadius, startAngle, endAngle,
       fill, payload, percent, value 
@@ -216,7 +216,7 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   };
   
   // Custom tooltip formatter
-  const tooltipFormatter = (value: any, name: string) => {
+  const tooltipFormatter = (value: any, name: string): [string, string] => {
     return [formatValue(value), name];
   };
   
@@ -640,4 +640,4 @@ const AdvancedChart: React.FC<AdvancedChartProps> = ({
   );
 };
 
-export default AdvancedChart;
+export default DrillDownChart;
