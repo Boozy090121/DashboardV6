@@ -4,9 +4,32 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   Cell, Sector, ReferenceLine
 } from 'recharts';
-import { ChevronRight, X, ZoomIn, Download, Share, Info, PieChart as PieChartIcon, RefreshCw } from 'lucide-react';
+import { ChevronRight, X, ZoomIn, Download, Share, Info, PieChartIcon, RefreshCw } from 'lucide-react';
 
-const DrillDownChart = ({
+// Define TypeScript interface for props
+interface DrillDownChartProps {
+  title: string;
+  description?: string;
+  data: any[];
+  type?: 'bar' | 'line' | 'area' | 'pie' | 'donut';
+  xDataKey?: string;
+  yDataKey?: string | string[];
+  categories?: string[];
+  colors?: string[];
+  comparisonValue?: number;
+  comparisonLabel?: string;
+  showTotal?: boolean;
+  currency?: boolean;
+  percentage?: boolean;
+  onDrillDown?: (data: any, index: number) => any;
+  height?: number;
+  allowDownload?: boolean;
+  allowZoom?: boolean;
+  noDataMessage?: string;
+  isLoading?: boolean;
+}
+
+const DrillDownChart: React.FC<DrillDownChartProps> = ({
   title,
   description,
   data,
@@ -28,14 +51,14 @@ const DrillDownChart = ({
   isLoading = false
 }) => {
   // State for interactions
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [drilldownVisible, setDrilldownVisible] = useState(false);
-  const [drilldownData, setDrilldownData] = useState(null);
-  const [drilldownTitle, setDrilldownTitle] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [drilldownVisible, setDrilldownVisible] = useState<boolean>(false);
+  const [drilldownData, setDrilldownData] = useState<any[] | null>(null);
+  const [drilldownTitle, setDrilldownTitle] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   
   // Refs
-  const chartContainerRef = useRef(null);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
   
   // Default chart colors
   const defaultColors = [
@@ -55,7 +78,7 @@ const DrillDownChart = ({
   const chartColors = colors || defaultColors;
   
   // Format values for display
-  const formatValue = (value) => {
+  const formatValue = (value: any): string => {
     if (value === null || value === undefined) return 'N/A';
     
     if (percentage) {
@@ -70,7 +93,7 @@ const DrillDownChart = ({
   };
   
   // Handle drill down on chart element click
-  const handleClick = (data, index) => {
+  const handleClick = (data: any, index: number): void => {
     setActiveIndex(index);
     
     if (!onDrillDown) return;
@@ -86,14 +109,14 @@ const DrillDownChart = ({
   };
   
   // Close drill down view
-  const closeDrillDown = () => {
+  const closeDrillDown = (): void => {
     setDrilldownVisible(false);
     setDrilldownData(null);
     setActiveIndex(null);
   };
   
   // Toggle fullscreen view
-  const toggleFullscreen = () => {
+  const toggleFullscreen = (): void => {
     if (!chartContainerRef.current) return;
     
     if (!isFullscreen) {
@@ -110,7 +133,7 @@ const DrillDownChart = ({
   };
   
   // Export chart data as CSV
-  const exportData = () => {
+  const exportData = (): void => {
     if (!data || data.length === 0) return;
     
     // Create CSV content
@@ -131,7 +154,7 @@ const DrillDownChart = ({
   };
   
   // Calculate total for data if needed
-  const calculateTotal = () => {
+  const calculateTotal = (): number => {
     if (!data || data.length === 0 || !yDataKey) return 0;
     
     if (typeof yDataKey === 'string') {
@@ -153,7 +176,7 @@ const DrillDownChart = ({
   };
   
   // Custom active shape for pie charts
-  const renderActiveShape = (props) => {
+  const renderActiveShape = (props: any): JSX.Element => {
     const { 
       cx, cy, innerRadius, outerRadius, startAngle, endAngle,
       fill, payload, percent, value 
@@ -193,8 +216,20 @@ const DrillDownChart = ({
   };
   
   // Custom tooltip formatter
-  const tooltipFormatter = (value, name) => {
+  const tooltipFormatter = (value: any, name: string): [string, string] => {
     return [formatValue(value), name];
+  };
+  
+  // Handle active dot click for line charts
+  const handleActiveDotClick = (dotProps: any): void => {
+    if (!data || !dotProps) return;
+    
+    // Find the index in the original data array
+    const index = dotProps.index !== undefined ? dotProps.index : dotProps.dataIndex;
+    
+    if (index !== undefined && index >= 0 && index < data.length) {
+      handleClick(data[index], index);
+    }
   };
   
   // Render the appropriate chart type
@@ -335,7 +370,7 @@ const DrillDownChart = ({
               type="monotone"
               dataKey={yDataKey} 
               stroke={chartColors[0]}
-              activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+              activeDot={{ r: 8, onClick: handleActiveDotClick }}
               className="cursor-pointer"
               strokeWidth={2}
             />
@@ -348,7 +383,7 @@ const DrillDownChart = ({
                 dataKey={key} 
                 name={categories[index] || key}
                 stroke={chartColors[index % chartColors.length]}
-                activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+                activeDot={{ r: 8, onClick: handleActiveDotClick }}
                 className="cursor-pointer"
                 strokeWidth={2}
               />
@@ -398,7 +433,7 @@ const DrillDownChart = ({
               dataKey={yDataKey} 
               stroke={chartColors[0]}
               fill={`${chartColors[0]}80`} // 50% opacity
-              activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+              activeDot={{ r: 8, onClick: handleActiveDotClick }}
               className="cursor-pointer"
             />
           ) : (
@@ -411,7 +446,7 @@ const DrillDownChart = ({
                 name={categories[index] || key}
                 stroke={chartColors[index % chartColors.length]}
                 fill={`${chartColors[index % chartColors.length]}80`} // 50% opacity
-                activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+                activeDot={{ r: 8, onClick: handleActiveDotClick }}
                 className="cursor-pointer"
               />
             ))

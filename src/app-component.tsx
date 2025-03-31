@@ -1,8 +1,8 @@
 import React from 'react';
-import NovoNordiskDashboard from './novo-nordisk-dashboard.tsx';
-import { DataProvider } from './data-context-provider.tsx';
+import NovoNordiskDashboard from './novo-nordisk-dashboard';
+import { DataProvider } from './data-context-provider';
 
-const App = () => {
+const App: React.FC = () => {
   return (
     <DataProvider>
       <NovoNordiskDashboard />

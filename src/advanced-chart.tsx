@@ -6,7 +6,30 @@ import {
 } from 'recharts';
 import { ChevronRight, X, ZoomIn, Download, Share, Info, RefreshCw } from 'lucide-react';
 
-const AdvancedChart = ({
+// Define TypeScript interface for the component props
+interface AdvancedChartProps {
+  title: string;
+  description?: string;
+  data: any[];
+  type?: 'bar' | 'line' | 'area' | 'pie' | 'donut';
+  xDataKey?: string;
+  yDataKey?: string | string[];
+  categories?: string[];
+  colors?: string[];
+  comparisonValue?: number;
+  comparisonLabel?: string;
+  showTotal?: boolean;
+  currency?: boolean;
+  percentage?: boolean;
+  onDrillDown?: (data: any, index: number) => any;
+  height?: number;
+  allowDownload?: boolean;
+  allowZoom?: boolean;
+  noDataMessage?: string;
+  isLoading?: boolean;
+}
+
+const AdvancedChart: React.FC<AdvancedChartProps> = ({
   title,
   description,
   data,
@@ -28,14 +51,14 @@ const AdvancedChart = ({
   isLoading = false
 }) => {
   // State for interactions
-  const [activeIndex, setActiveIndex] = useState(null);
-  const [drilldownVisible, setDrilldownVisible] = useState(false);
-  const [drilldownData, setDrilldownData] = useState(null);
-  const [drilldownTitle, setDrilldownTitle] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [drilldownVisible, setDrilldownVisible] = useState<boolean>(false);
+  const [drilldownData, setDrilldownData] = useState<any[] | null>(null);
+  const [drilldownTitle, setDrilldownTitle] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   
   // Refs
-  const chartContainerRef = useRef(null);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
   
   // Default chart colors
   const defaultColors = [
@@ -55,7 +78,7 @@ const AdvancedChart = ({
   const chartColors = colors || defaultColors;
   
   // Format values for display
-  const formatValue = (value) => {
+  const formatValue = (value: any): string => {
     if (value === null || value === undefined) return 'N/A';
     
     if (percentage) {
@@ -70,7 +93,7 @@ const AdvancedChart = ({
   };
   
   // Handle drill down on chart element click
-  const handleClick = (data, index) => {
+  const handleClick = (data: any, index: number): void => {
     setActiveIndex(index);
     
     if (!onDrillDown) return;
@@ -86,14 +109,14 @@ const AdvancedChart = ({
   };
   
   // Close drill down view
-  const closeDrillDown = () => {
+  const closeDrillDown = (): void => {
     setDrilldownVisible(false);
     setDrilldownData(null);
     setActiveIndex(null);
   };
   
   // Toggle fullscreen view
-  const toggleFullscreen = () => {
+  const toggleFullscreen = (): void => {
     if (!chartContainerRef.current) return;
     
     if (!isFullscreen) {
@@ -153,7 +176,7 @@ const AdvancedChart = ({
   };
   
   // Custom active shape for pie charts
-  const renderActiveShape = (props) => {
+  const renderActiveShape = (props: any) => {
     const { 
       cx, cy, innerRadius, outerRadius, startAngle, endAngle,
       fill, payload, percent, value 
@@ -193,8 +216,20 @@ const AdvancedChart = ({
   };
   
   // Custom tooltip formatter
-  const tooltipFormatter = (value, name) => {
+  const tooltipFormatter = (value: any, name: string) => {
     return [formatValue(value), name];
+  };
+  
+  // Handle active dot click for line charts
+  const handleActiveDotClick = (dotProps: any): void => {
+    if (!data || !dotProps) return;
+    
+    // Find the index in the original data array
+    const index = dotProps.index !== undefined ? dotProps.index : dotProps.dataIndex;
+    
+    if (index !== undefined && index >= 0 && index < data.length) {
+      handleClick(data[index], index);
+    }
   };
   
   // Render the appropriate chart type
@@ -335,7 +370,7 @@ const AdvancedChart = ({
               type="monotone"
               dataKey={yDataKey} 
               stroke={chartColors[0]}
-              activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+              activeDot={{ r: 8, onClick: handleActiveDotClick }}
               className="cursor-pointer"
               strokeWidth={2}
             />
@@ -348,7 +383,7 @@ const AdvancedChart = ({
                 dataKey={key} 
                 name={categories[index] || key}
                 stroke={chartColors[index % chartColors.length]}
-                activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+                activeDot={{ r: 8, onClick: handleActiveDotClick }}
                 className="cursor-pointer"
                 strokeWidth={2}
               />
@@ -398,7 +433,7 @@ const AdvancedChart = ({
               dataKey={yDataKey} 
               stroke={chartColors[0]}
               fill={`${chartColors[0]}80`} // 50% opacity
-              activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+              activeDot={{ r: 8, onClick: handleActiveDotClick }}
               className="cursor-pointer"
             />
           ) : (
@@ -411,7 +446,7 @@ const AdvancedChart = ({
                 name={categories[index] || key}
                 stroke={chartColors[index % chartColors.length]}
                 fill={`${chartColors[index % chartColors.length]}80`} // 50% opacity
-                activeDot={{ r: 8, onClick: (data, index) => handleClick(data.payload, data.index) }}
+                activeDot={{ r: 8, onClick: handleActiveDotClick }}
                 className="cursor-pointer"
               />
             ))

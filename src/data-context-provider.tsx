@@ -1,15 +1,56 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import * as XLSX from 'xlsx';
 
+// Extend Window interface to include fs property
+declare global {
+  interface Window {
+    fs: {
+      readFile: (filename: string) => Promise<any>;
+    }
+  }
+}
+
+// Type definitions
+interface FileStatus {
+  loaded: boolean;
+  status: 'pending' | 'loading' | 'success' | 'error';
+  error?: string;
+}
+
+interface FileStatusMap {
+  [filename: string]: FileStatus;
+}
+
+interface DataState {
+  isLoading: boolean;
+  error: string | null;
+  data: any | null;
+  lastUpdated: Date | null;
+  fileStatus: FileStatusMap;
+}
+
+interface DataContextValue {
+  isLoading: boolean;
+  error: string | null;
+  data: any | null;
+  fileStatus: FileStatusMap;
+  lastUpdated: Date | null;
+  refreshData: () => Promise<void>;
+}
+
+interface DataProviderProps {
+  children: ReactNode;
+}
+
 // Create context
-const DataContext = createContext();
+const DataContext = createContext<DataContextValue | undefined>(undefined);
 
 // Excel processor
 import NovoNordiskExcelProcessor from './ExcelProcessor';
 
-export const DataProvider = ({ children }) => {
+export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   // The shared state that will be available to our components
-  const [dataState, setDataState] = useState({
+  const [dataState, setDataState] = useState<DataState>({
     isLoading: true,
     error: null,
     data: null,
@@ -22,10 +63,10 @@ export const DataProvider = ({ children }) => {
   });
 
   // Initialize the processor
-  const [processor] = useState(new NovoNordiskExcelProcessor());
+  const [processor] = useState<any>(new NovoNordiskExcelProcessor());
 
   // Function to load and process files
-  const loadAndProcessFiles = async () => {
+  const loadAndProcessFiles = async (): Promise<void> => {
     try {
       setDataState(prev => ({
         ...prev,
@@ -69,7 +110,7 @@ export const DataProvider = ({ children }) => {
               [file.name]: { loaded: true, status: 'success' }
             }
           }));
-        } catch (err) {
+        } catch (err: any) {
           console.error(`Error processing ${file.name}:`, err);
           
           // Update status to error
@@ -93,7 +134,7 @@ export const DataProvider = ({ children }) => {
         data: processedData,
         lastUpdated: new Date(),
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading files:", error);
       setDataState(prev => ({
         ...prev,
@@ -109,7 +150,7 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   // Generate mock data if needed
-  const generateMockData = () => {
+  const generateMockData = (): any => {
     // Generate mock data if we couldn't load real data
     const mockData = {
       overview: {
@@ -225,7 +266,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // Function to get data (real or mock if needed)
-  const getData = () => {
+  const getData = (): any | null => {
     if (dataState.data) {
       return dataState.data;
     }
@@ -240,7 +281,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // Value to be provided to consumers
-  const contextValue = {
+  const contextValue: DataContextValue = {
     isLoading: dataState.isLoading,
     error: dataState.error,
     data: getData(),
@@ -256,8 +297,7 @@ export const DataProvider = ({ children }) => {
   );
 };
 
-// Hook to use the data context
-export const useDataContext = () => {
+export const useDataContext = (): DataContextValue => {
   const context = useContext(DataContext);
   if (context === undefined) {
     throw new Error('useDataContext must be used within a DataProvider');
